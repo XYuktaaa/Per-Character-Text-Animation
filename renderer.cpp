@@ -1,6 +1,7 @@
 #include "renderer.h"
 #include <cmath>
 
+
 // Called every frame by GTK's tick callback (~60fps)
 void render_frame(cairo_t* cr,
                   std::vector<GlyphInfo>& glyphs,
@@ -11,13 +12,36 @@ void render_frame(cairo_t* cr,
                   int canvas_w, 
                   int canvas_h,
                   int selected_glyph,
-                  double amplitude)
+                  double amplitude,
+                  double global_rotation,
+                  double text_offset_x,
+                  double text_offset_y,
+                  double char_spacing)
 {
     // Clear background
     cairo_set_source_rgb(cr, 0.10, 0.10, 0.18);
     cairo_paint(cr);
 
     double baseline_y = canvas_h * 0.62;  // vertical anchor
+    cairo_save(cr);
+    cairo_set_source_rgba(cr, 0.4, 0.6, 1.0, 0.25);
+    cairo_set_line_width(cr, 0.5);
+    double dashes[] = {6.0, 4.0};
+    cairo_set_dash(cr, dashes, 2, 0);
+    cairo_move_to(cr, 20, baseline_y + text_offset_y);
+    cairo_line_to(cr, canvas_w - 20, baseline_y + text_offset_y);
+    cairo_stroke(cr);
+    cairo_set_dash(cr, nullptr, 0, 0);  // reset dash
+    cairo_set_source_rgba(cr, 0.4, 0.6, 1.0, 0.4);
+    cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+    cairo_set_font_size(cr, 10);
+    cairo_move_to(cr, 24, baseline_y + text_offset_y - 4);
+    cairo_show_text(cr, "baseline");
+    cairo_restore(cr);
+
+	double total_width = 0.0;
+	for (auto& gi : glyphs) total_width += gi.width;
+	double start_x = (canvas_w - total_width) / 2.0;
 
     for (int i = 0; i < (int)glyphs.size(); i++) {
         GlyphInfo& g = glyphs[i];
@@ -29,7 +53,7 @@ void render_frame(cairo_t* cr,
         double opacity = 1.0;
 
         if (mode == MODE_WAVE) {
-            dy = -std::sin(phase * 2.5) * 28.0;     // bounce amplitude 28px
+            dy = -std::sin(phase * 2.5) * amplitude;     // bounce amplitude 28px
             dscale = 1.0 + std::sin(phase * 2.5) * 0.08;
         }
         else if (mode == MODE_SCALE_POPIN) {
@@ -78,18 +102,17 @@ void render_frame(cairo_t* cr,
                 default:g.params.r=1;g.params.g=0;g.params.b=1-f;break;
             }
         }
-
-        // ── Apply final GlyphLayer params + effect offsets ──
-        double cx = g.natural_x + g.width  / 2.0 + 60.0;  // center x with margin
-        double cy = baseline_y  + g.natural_y + g.height / 2.0;
-
+        double cx = start_x + g.natural_x + g.width / 2.0 + text_offset_x + (i * char_spacing);
+		double cy = baseline_y + g.natural_y + g.height / 2.0 + text_offset_y;
+      
         double final_scale   = g.params.scale * dscale;
         double final_y       = cy + g.params.origin_y + dy;
         double final_opacity = g.params.opacity * opacity;
 
         cairo_save(cr);
         cairo_translate(cr, cx + g.params.origin_x, final_y);
-        cairo_rotate(cr, g.params.rotation);
+        // cairo_rotate(cr, g.params.rotation);
+        cairo_rotate(cr, g.params.rotation + global_rotation);
         cairo_scale(cr, final_scale, final_scale);
         cairo_translate(cr, -g.width / 2.0, -g.height / 2.0);
         cairo_set_source_rgba(cr, g.params.r, g.params.g, g.params.b, final_opacity);

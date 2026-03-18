@@ -29,29 +29,33 @@ std::vector<GlyphInfo> extract_glyphs(const std::string& text,
     pango_layout_set_font_description(layout, fd);
     pango_font_description_free(fd);
 
+    // NEW: get overall layout extents so we can center vertically
+    PangoRectangle layout_rect;
+    pango_layout_get_extents(layout, nullptr, &layout_rect);
+
     PangoLayoutIter* iter = pango_layout_get_iter(layout);
     int char_index = 0;
 
     do {
         PangoLayoutRun* run = pango_layout_iter_get_run_readonly(iter);
-        if (!run) continue;
+        if (!run) { char_index++; continue; }  // newline sentinel
 
-        PangoRectangle rect;
-        pango_layout_iter_get_char_extents(iter, &rect);
+        PangoRectangle logical_rect;
+        pango_layout_iter_get_char_extents(iter, &logical_rect);
+
+        // NEW: get the baseline Y for this specific line
+        int baseline = pango_layout_iter_get_baseline(iter);
 
         GlyphInfo gi;
         gi.cluster_index  = pango_layout_iter_get_index(iter);
-        gi.natural_x      = (double)rect.x      / PANGO_SCALE;
-        gi.natural_y      = (double)rect.y      / PANGO_SCALE;
-        gi.width          = (double)rect.width  / PANGO_SCALE;
-        gi.height         = (double)rect.height / PANGO_SCALE;
+        gi.natural_x      = (double)logical_rect.x      / PANGO_SCALE;
+        gi.natural_y      = (double)baseline             / PANGO_SCALE; // use baseline, not rect.y
+        gi.width          = (double)logical_rect.width   / PANGO_SCALE;
+        gi.height         = (double)logical_rect.height  / PANGO_SCALE;
+        gi.glyph_string   = pango_glyph_string_copy(run->glyphs);
+        gi.item           = pango_item_copy(run->item);
 
-        // Deep-copy glyph string so it survives layout teardown
-        gi.glyph_string  = pango_glyph_string_copy(run->glyphs);
-        gi.item          = pango_item_copy(run->item);
-
-        // Assign a distinct hue per character
-        double hue = (double)char_index / (double)text.size();
+        double hue = (double)char_index / std::max(1, (int)text.size());
         hue_to_rgb(hue, gi.params.r, gi.params.g, gi.params.b);
 
         result.push_back(gi);

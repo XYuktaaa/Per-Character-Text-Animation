@@ -29,11 +29,6 @@ static double g_text_offset_x = 0.0;
 static double g_text_offset_y = 0.0;
 static double g_drag_start_x  = 0.0;
 static double g_drag_start_y  = 0.0;
-static double g_char_spacing = 0.0;
-static double g_global_opacity = 1.0;
-static bool g_paused = false;
-static double g_paused_t = 0.0;
-
 
 static void on_rotation(GtkRange* r, gpointer) {
     g_rotation = gtk_range_get_value(r) * M_PI / 180.0;  // degrees → radians
@@ -60,23 +55,14 @@ static gboolean on_tick(GtkWidget* widget, GdkFrameClock*, gpointer) {
 
 static void on_drag_begin(GtkGestureDrag*, double x, double y, gpointer) {
     // store where drag started relative to current text position
-    g_drag_start_x =  g_text_offset_x;
-    g_drag_start_y =  g_text_offset_y;
+    g_drag_start_x = x - g_text_offset_x;
+    g_drag_start_y = y - g_text_offset_y;
 }
 
 static void on_drag_update(GtkGestureDrag*, double offset_x, double offset_y, gpointer) {
     // GTK gives cumulative offset from drag start, not delta
     g_text_offset_x = g_drag_start_x + offset_x;
     g_text_offset_y = g_drag_start_y + offset_y;
-}
-
-static void on_pause_toggle(GtkToggleButton* btn, gpointer) {
-    g_paused = gtk_toggle_button_get_active(btn);
-    if (g_paused) {
-        // snapshot current time when pausing
-        auto now = std::chrono::steady_clock::now();
-        g_paused_t = std::chrono::duration<double>(now - g_start).count();
-    }
 }
 
 static void apply_dark_theme(GtkWidget* window){
@@ -86,7 +72,7 @@ static void apply_dark_theme(GtkWidget* window){
         " background-color: #1e1e2e;"
         " color: #cdd6f4;"
         "}"
-        "entry{"
+        "entry{}"
         " background-color: #12121e;"
         "  color: #a78bfa;"
         "  border: 1px solid #3a3a5e;"
@@ -131,11 +117,9 @@ static void on_draw(GtkDrawingArea*, cairo_t* cr,
                     int w, int h, gpointer)
 {
     auto now = std::chrono::steady_clock::now();
-	double t = g_paused ? g_paused_t 
-                        : std::chrono::duration<double>(now - g_start).count();
-    
-	render_frame(cr, g_glyphs, g_mode, t, g_stagger, g_speed, w, h, g_selected_glyph,g_amplitude,  g_rotation,g_text_offset_x,g_text_offset_y,g_char_spacing);
-	
+    double t = std::chrono::duration<double>(now - g_start).count();
+	render_frame(cr, g_glyphs, g_mode, t, g_stagger, g_speed, w, h,, g_selected_glyph, g_rotation,g_text_offset_x,g_text_offset_y);
+
     // FPS counter in top-right corner
     g_frame_count++;
     double elapsed = std::chrono::duration<double>(now - g_fps_time).count();
@@ -174,16 +158,13 @@ static void on_stagger(GtkRange* r, gpointer) {
 static void on_speed(GtkRange* r, gpointer) {
     g_speed = gtk_range_get_value(r);
 }
-static void on_spacing(GtkRange* r, gpointer) {
-    g_char_spacing = gtk_range_get_value(r);
-}
 
 
 static void activate(GtkApplication* app, gpointer) {
     // Initial glyph extraction
     cairo_surface_t* tmp = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 1, 1);
     cairo_t* tmp_cr = cairo_create(tmp);
-    g_glyphs = extract_glyphs(g_current_text, "Sans Bold 72", tmp_cr);
+    g_glyphs = extract_glyphs("SYNFIG", "Sans Bold 72", tmp_cr);
     cairo_destroy(tmp_cr); cairo_surface_destroy(tmp);
 
     GtkWidget* window = gtk_application_window_new(app);
@@ -261,7 +242,6 @@ gtk_widget_add_controller(g_canvas, GTK_EVENT_CONTROLLER(drag));
     gtk_widget_set_margin_end(mode_grid, 8);
     gtk_widget_set_margin_bottom(mode_grid, 8);
 
-
     const char* mlabels[] = {"Wave", "Scale pop-in", "Color cycle", "All"};
     EffectMode  mmodes[]  = {MODE_WAVE, MODE_SCALE_POPIN, MODE_COLOR, MODE_ALL};
     GtkWidget* first_btn = nullptr;
@@ -273,11 +253,7 @@ gtk_widget_add_controller(g_canvas, GTK_EVENT_CONTROLLER(drag));
         gtk_grid_attach(GTK_GRID(mode_grid), btn, i % 2, i / 2, 1, 1);
         gtk_widget_set_hexpand(btn, TRUE);
     }
-    GtkWidget* pause_btn = gtk_toggle_button_new_with_label("Pause / Play");
-	g_signal_connect(pause_btn, "toggled", G_CALLBACK(on_pause_toggle), nullptr);
-	gtk_grid_attach(GTK_GRID(mode_grid), pause_btn, 0, 2, 2, 1);  // spans both columns, row 2
-	gtk_widget_set_hexpand(pause_btn, TRUE);
-	gtk_box_append(GTK_BOX(panel_vbox), mode_grid);
+    gtk_box_append(GTK_BOX(panel_vbox), mode_grid);
 
     // Separator
     gtk_box_append(GTK_BOX(panel_vbox), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL));
@@ -311,7 +287,6 @@ gtk_widget_add_controller(g_canvas, GTK_EVENT_CONTROLLER(drag));
     add_slider(2, "amplitude",    0.0,  60.0, 28.0, G_CALLBACK(on_amplitude));
     add_slider(3, "font size",    24.0, 120.0,72.0, G_CALLBACK(on_fontsize));
 	add_slider(4, "rotation (°)", -45.0, 45.0, 0.0, G_CALLBACK(on_rotation));
-	add_slider(5, "char spacing", -20.0, 40.0, 0.0, G_CALLBACK(on_spacing));
 
     gtk_box_append(GTK_BOX(panel_vbox), sliders);
     gtk_paned_set_end_child(GTK_PANED(paned), panel_vbox);
@@ -320,7 +295,7 @@ gtk_widget_add_controller(g_canvas, GTK_EVENT_CONTROLLER(drag));
 
     // Status bar
     GtkWidget* statusbar = gtk_label_new(
-        "TextGroupLayer PoC v2  ·  Pango/Cairo testbed  ·  Production: FreeType+HarfBuzz  ·  GTK4");
+        "TextGroupLayer PoC v2  ·  PangoLayoutIter  ·  pango_cairo_show_glyph_string()  ·  GTK4");
     gtk_widget_set_margin_top(statusbar, 4);
     gtk_widget_set_margin_bottom(statusbar, 4);
     gtk_box_append(GTK_BOX(root_vbox), statusbar);
