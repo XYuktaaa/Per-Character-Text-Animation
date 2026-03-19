@@ -56,7 +56,7 @@ int main(){
 
     pango_layout_iter_free(iter);
 
-    // --- 4. Render each glyph independently with a transform ---
+    
     double baseline = 100.0; // vertical anchor in the PNG
 
     for (int i = 0; i < (int)glyphs.size(); i++) {
@@ -91,7 +91,7 @@ int main(){
         cairo_restore(cr);
     }
 
-    // --- 5. Save output ---
+    
     cairo_surface_write_to_png(surface, "output.png");
     printf("Written output.png\n");
 
