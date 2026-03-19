@@ -117,10 +117,10 @@ maps directly to `Layer_StaggeredGroup::compute_phase()` in the final design.
 ```
 Layer_PasteCanvas        (already exists)
         ↑
-Layer_StaggeredGroup     (GSoC — owns stagger engine)
+Layer_StaggeredGroup     (owns stagger engine)
         ↑                          ↑
 Layer_TextGroup          Layer_AnimateGroup
-(GSoC deliverable)       (future — not GSoC scope)
+( deliverable)       (future scope)
         ↓
 Layer_GlyphShape × N     (one per HarfBuzz cluster)
 ```
