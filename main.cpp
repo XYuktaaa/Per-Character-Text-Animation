@@ -9,7 +9,7 @@
 // Forward declarations
 static void on_draw(GtkDrawingArea*, cairo_t*, int, int, gpointer);
 static gboolean on_tick(GtkWidget*, GdkFrameClock*, gpointer);
-// App state
+
 static std::string g_current_text = "SYNFIG\nSTUDIO";
 static std::vector<GlyphInfo> g_glyphs;
 static EffectMode  g_mode    = MODE_WAVE;
@@ -44,8 +44,7 @@ static void on_amplitude(GtkRange* r, gpointer) {
 
 static void on_fontsize(GtkRange* r, gpointer) {
     g_fontsize = gtk_range_get_value(r);
-    // Rebuild glyphs with new font size
-    // (read current text from entry — store it as a global string)
+
     cairo_surface_t* tmp = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 1, 1);
     cairo_t* tmp_cr = cairo_create(tmp);
     std::string font_str = "Sans Bold " + std::to_string((int)g_fontsize);
@@ -65,7 +64,7 @@ static void on_drag_begin(GtkGestureDrag*, double x, double y, gpointer) {
 }
 
 static void on_drag_update(GtkGestureDrag*, double offset_x, double offset_y, gpointer) {
-    // GTK gives cumulative offset from drag start, not delta
+
     g_text_offset_x = g_drag_start_x + offset_x;
     g_text_offset_y = g_drag_start_y + offset_y;
 }
@@ -126,7 +125,7 @@ static void apply_dark_theme(GtkWidget* window){
 }
    
 
-// GTK draw callback
+
 static void on_draw(GtkDrawingArea*, cairo_t* cr,
                     int w, int h, gpointer)
 {
@@ -192,15 +191,14 @@ static void activate(GtkApplication* app, gpointer) {
     gtk_window_set_default_size(GTK_WINDOW(window), 1100, 640);
     apply_dark_theme(window);
 
-    // ── Root layout ──
+    
     GtkWidget* root_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 
-    // ── Paned: canvas left, panel right ──
+    
     GtkWidget* paned = gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
     gtk_widget_set_vexpand(paned, TRUE);
     gtk_paned_set_position(GTK_PANED(paned), 780);
 
-    // ── LEFT: canvas vbox ──
     GtkWidget* canvas_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 
     // Canvas top bar with fps label
@@ -254,7 +252,7 @@ gtk_widget_add_controller(g_canvas, GTK_EVENT_CONTROLLER(drag));
 
     gtk_paned_set_start_child(GTK_PANED(paned), canvas_vbox);
 
-    // ── RIGHT: parameters panel ──
+    // RIGHT: parameters panel 
     GtkWidget* panel_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     gtk_widget_set_size_request(panel_vbox, 280, -1);
 
