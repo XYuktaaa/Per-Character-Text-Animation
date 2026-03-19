@@ -2,7 +2,6 @@
 #include <cmath>
 
 
-// Called every frame by GTK's tick callback (~60fps)
 void render_frame(cairo_t* cr,
                   std::vector<GlyphInfo>& glyphs,
                   EffectMode mode,
@@ -46,8 +45,6 @@ void render_frame(cairo_t* cr,
     for (int i = 0; i < (int)glyphs.size(); i++) {
         GlyphInfo& g = glyphs[i];
         double phase = t * speed - i * stagger;  // staggered time per char
-
-        // ── Compute per-glyph transform from effect mode ──
         double dy     = 0.0;
         double dscale = 1.0;
         double opacity = 1.0;
@@ -72,7 +69,7 @@ void render_frame(cairo_t* cr,
             // Hue continuously rotates per character
             double hue = fmod(t * speed * 0.3 + (double)i / glyphs.size(), 1.0);
             double r, gg, b;
-            // inline hue → rgb
+            
             double h6 = hue * 6.0;
             int seg = (int)h6 % 6;
             double f = h6 - (int)h6;
