@@ -51,7 +51,7 @@ void render_frame(cairo_t* cr,
 
         if (mode == MODE_WAVE) {
             dy = -std::sin(phase * 2.5) * amplitude;     // bounce amplitude 28px
-            dscale = 1.0 + std::sin(phase * 2.5) * 0.08;
+            dscale = 1.0 + std::sin(phase * 2.5) * 0.06;
         }
         else if (mode == MODE_SCALE_POPIN) {
             // Each char pops in sequentially, then settles
