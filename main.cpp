@@ -148,20 +148,6 @@ static void on_draw(GtkDrawingArea*, cairo_t* cr,
         if (g_fps_label) gtk_label_set_text(GTK_LABEL(g_fps_label), buf);
     }
 }
-// Tick callback — forces redraw every frame
-static void on_text_changed(GtkEditable* editable, gpointer) {
-    const char* text = gtk_editable_get_text(GTK_EDITABLE(editable));
-    if (!text || strlen(text) == 0) return;
-    g_current_text = std::string(text);
-    // rebuild with current font size
-    std::string font_str = "Sans Bold " + std::to_string((int)g_fontsize);
-    cairo_surface_t* tmp = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 1, 1);
-    cairo_t* tmp_cr = cairo_create(tmp);
-    g_glyphs = extract_glyphs(g_current_text, font_str, tmp_cr);
-    cairo_destroy(tmp_cr); cairo_surface_destroy(tmp);
-    g_selected_glyph = -1;
-
-}
 
 static void on_mode_changed(GtkToggleButton* btn, gpointer data) {
     if (gtk_toggle_button_get_active(btn))
@@ -177,7 +163,22 @@ static void on_speed(GtkRange* r, gpointer) {
 static void on_spacing(GtkRange* r, gpointer) {
     g_char_spacing = gtk_range_get_value(r);
 }
+static void on_buffer_changed(GtkTextBuffer* buf, gpointer) {
+    GtkTextIter start, end;
+    gtk_text_buffer_get_bounds(buf, &start, &end);
+    char* text = gtk_text_buffer_get_text(buf, &start, &end, FALSE);
+    if (!text || strlen(text) == 0) { g_free(text); return; }
+    g_current_text = std::string(text);
+    g_free(text);
 
+    std::string font_str = "Sans Bold " + std::to_string((int)g_fontsize);
+    cairo_surface_t* tmp = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 1, 1);
+    cairo_t* tmp_cr = cairo_create(tmp);
+    g_glyphs = extract_glyphs(g_current_text, font_str, tmp_cr);
+    cairo_destroy(tmp_cr);
+    cairo_surface_destroy(tmp);
+    g_selected_glyph = -1;
+}
 
 static void activate(GtkApplication* app, gpointer) {
     // Initial glyph extraction
@@ -234,12 +235,21 @@ gtk_widget_add_controller(g_canvas, GTK_EVENT_CONTROLLER(drag));
     gtk_widget_set_margin_top(entry_bar, 6);
     gtk_widget_set_margin_bottom(entry_bar, 6);
     GtkWidget* entry_label = gtk_label_new("text  ");
-    GtkWidget* entry = gtk_entry_new();
-    gtk_editable_set_text(GTK_EDITABLE(entry), "SYNFIG\nSTUDIO");
-    gtk_widget_set_hexpand(entry, TRUE);
-    g_signal_connect(entry, "changed", G_CALLBACK(on_text_changed), nullptr);
+    GtkWidget* textview = gtk_text_view_new();
+	gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(textview), GTK_WRAP_WORD);
+	gtk_widget_set_hexpand(textview, TRUE);
+	gtk_widget_set_size_request(textview, -1, 60);
+	GtkTextBuffer* buf = gtk_text_view_get_buffer(GTK_TEXT_VIEW(textview));
+	gtk_text_buffer_set_text(buf, "SYNFIG\nSTUDIO", -1);
+	g_signal_connect(buf, "changed", G_CALLBACK(on_buffer_changed), nullptr);
+
+	gtk_box_append(GTK_BOX(entry_bar), entry_label);
+	gtk_box_append(GTK_BOX(entry_bar), textview);
+	
+    // gtk_widget_set_hexpand(entry, TRUE);
+    // g_signal_connect(entry, "changed", G_CALLBACK(on_text_changed), nullptr);
     gtk_box_append(GTK_BOX(entry_bar), entry_label);
-    gtk_box_append(GTK_BOX(entry_bar), entry);
+    // gtk_box_append(GTK_BOX(entry_bar), entry);
     gtk_box_append(GTK_BOX(canvas_vbox), entry_bar);
 
     gtk_paned_set_start_child(GTK_PANED(paned), canvas_vbox);
