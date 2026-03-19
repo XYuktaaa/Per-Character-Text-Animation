@@ -29,7 +29,7 @@ std::vector<GlyphInfo> extract_glyphs(const std::string& text,
     pango_layout_set_font_description(layout, fd);
     pango_font_description_free(fd);
 
-    // NEW: get overall layout extents so we can center vertically
+    
     PangoRectangle layout_rect;
     pango_layout_get_extents(layout, nullptr, &layout_rect);
 
@@ -43,7 +43,7 @@ std::vector<GlyphInfo> extract_glyphs(const std::string& text,
         PangoRectangle logical_rect;
         pango_layout_iter_get_char_extents(iter, &logical_rect);
 
-        // NEW: get the baseline Y for this specific line
+        
         int baseline = pango_layout_iter_get_baseline(iter);
 
         GlyphInfo gi;
