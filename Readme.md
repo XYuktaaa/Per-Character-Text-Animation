@@ -3,7 +3,7 @@
 A working interactive prototype demonstrating per-character text animation
 for Synfig Studio, built as part of a GSoC 2026 proposal.
 
-![demo](2026-03-19T20:01:47+05:30.png)
+![demo](Screenshot.png)
 
 ---
 
