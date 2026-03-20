@@ -13,7 +13,7 @@ static gboolean on_tick(GtkWidget*, GdkFrameClock*, gpointer);
 static std::string g_current_text = "SYNFIG\nSTUDIO";
 static std::vector<GlyphInfo> g_glyphs;
 static EffectMode  g_mode    = MODE_WAVE;
-static double      g_stagger = 0.12;
+static double      g_stagger = 0.08;
 static double      g_speed   = 1.1;
 static GtkWidget*  g_canvas  = nullptr;
 static auto        g_start   = std::chrono::steady_clock::now();

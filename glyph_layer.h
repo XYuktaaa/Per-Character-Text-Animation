@@ -17,10 +17,13 @@ struct GlyphInfo {
     int cluster_index;
     double natural_x;
     double natural_y;
+    double baseline; 
     double width, height;
     PangoGlyphString* glyph_string;
     PangoItem* item;
     GlyphParams  params;
+    double baseline_offset;
+    
 };
 
 std::vector<GlyphInfo> extract_glyphs(const std::string& text, const std::string& font_desc_str, cairo_t* cr);

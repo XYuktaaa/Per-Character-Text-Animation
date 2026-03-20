@@ -17,6 +17,11 @@ void render_frame(cairo_t* cr,
                   double text_offset_y,
                   double char_spacing)
 {
+    for (int i = 0; i < (int)glyphs.size(); i++) {
+    printf("glyph[%d]: natural_x=%.1f natural_y=%.1f width=%.1f height=%.1f\n",
+           i, glyphs[i].natural_x, glyphs[i].natural_y, 
+           glyphs[i].width, glyphs[i].height);
+}
     // Clear background
     cairo_set_source_rgb(cr, 0.10, 0.10, 0.18);
     cairo_paint(cr);
@@ -38,32 +43,47 @@ void render_frame(cairo_t* cr,
     cairo_show_text(cr, "baseline");
     cairo_restore(cr);
 
-	double total_width = 0.0;
-	for (auto& gi : glyphs) total_width += gi.width;
-	double start_x = (canvas_w - total_width) / 2.0;
+	if (glyphs.empty()) return;
+	double min_x = glyphs[0].natural_x;
+	double max_x = glyphs[0].natural_x + glyphs[0].width;
+	for (auto& gi : glyphs) {
+    	if (gi.natural_x < min_x) min_x = gi.natural_x;
+    	if (gi.natural_x + gi.width > max_x) max_x = gi.natural_x + gi.width;
+	}
+	double layout_width = max_x - min_x;
+	double start_x = (canvas_w / 2.0) - (layout_width / 2.0) - min_x;
 
     for (int i = 0; i < (int)glyphs.size(); i++) {
         GlyphInfo& g = glyphs[i];
         double phase = t * speed - i * stagger;  // staggered time per char
+		// double phase = t * speed;
         double dy     = 0.0;
         double dscale = 1.0;
         double opacity = 1.0;
 
         if (mode == MODE_WAVE) {
             dy = -std::sin(phase * 2.5) * amplitude;     // bounce amplitude 28px
-            dscale = 1.0 + std::sin(phase * 2.5) * 0.06;
+            dscale = 1.0 + std::sin(phase * 2.5) * 0.08;
         }
-        else if (mode == MODE_SCALE_POPIN) {
-            // Each char pops in sequentially, then settles
-            double local_t = fmod(phase, 2.5);
-            if (local_t < 0) local_t += 2.5;
-            if (local_t < 0.3)
-                dscale = local_t / 0.3 * 1.4;       // overshoot to 1.4×
-            else if (local_t < 0.5)
-                dscale = 1.4 - (local_t - 0.3) / 0.2 * 0.4;  // settle to 1.0×
-            else
-                dscale = 1.0;
-            opacity = (local_t < 0.1) ? local_t / 0.1 : 1.0;
+                else if (mode == MODE_SCALE_POPIN) {
+            // Each letter pops in sequentially and then loops independently
+            // Use fmod so each letter repeats its own pop-in cycle
+            double cycle = 1.5;  // seconds per cycle
+            double local_t = t * speed - i * stagger;
+            if (local_t < 0) {
+                // animation hasn't started yet for this glyph
+                dscale  = 0.0;
+                opacity = 0.0;
+            } else {
+                double loop_t = fmod(local_t, cycle);
+                if (loop_t < 0.3)
+                    dscale = (loop_t / 0.3) * 1.4;              // grow to 1.4× overshoot
+                else if (loop_t < 0.5)
+                    dscale = 1.4 - (loop_t - 0.3) / 0.2 * 0.4; // settle back to 1.0×
+                else
+                    dscale = 1.0;                                 // hold
+                opacity = (loop_t < 0.1) ? loop_t / 0.1 : 1.0;
+            }
         }
         else if (mode == MODE_COLOR) {
             // Hue continuously rotates per character
@@ -99,35 +119,29 @@ void render_frame(cairo_t* cr,
                 default:g.params.r=1;g.params.g=0;g.params.b=1-f;break;
             }
         }
-        double cx = start_x + g.natural_x + g.width / 2.0 + text_offset_x + (i * char_spacing);
-		double cy = baseline_y + g.natural_y + g.height / 2.0 + text_offset_y;
-      
-        double final_scale   = g.params.scale * dscale;
-        double final_y       = cy + g.params.origin_y + dy;
-        double final_opacity = g.params.opacity * opacity;
+       double cx = start_x + g.natural_x + g.width / 2.0
+            + text_offset_x + (i * char_spacing);
+double cy = baseline_y + g.natural_y + text_offset_y;
 
-        cairo_save(cr);
-        cairo_translate(cr, cx + g.params.origin_x, final_y);
-        // cairo_rotate(cr, g.params.rotation);
-        cairo_rotate(cr, g.params.rotation + global_rotation);
-        cairo_scale(cr, final_scale, final_scale);
-        cairo_translate(cr, -g.width / 2.0, -g.height / 2.0);
-        cairo_set_source_rgba(cr, g.params.r, g.params.g, g.params.b, final_opacity);
-        cairo_move_to(cr, 0, 0);
-        pango_cairo_show_glyph_string(cr, g.item->analysis.font, g.glyph_string);
-        cairo_restore(cr);
-       // Draw selection highlight box
-if (selected_glyph == i || selected_glyph == -1 && false) {
-    cairo_save(cr);
-    cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, 0.25);
-    cairo_set_line_width(cr, 1.0);
-    double bx = cx + g.params.origin_x - g.width  / 2.0 * final_scale;
-    double by = final_y               - g.height / 2.0 * final_scale;
-    double bw = g.width  * final_scale;
-    double bh = g.height * final_scale;
-    cairo_rectangle(cr, bx, by, bw, bh);
-    cairo_stroke(cr);
-    cairo_restore(cr);
+double final_scale   = g.params.scale * dscale;
+double final_y       = cy + g.params.origin_y + dy;
+double final_opacity = g.params.opacity * opacity;
+
+cairo_save(cr);
+
+// Move to glyph center
+cairo_translate(cr, cx + g.params.origin_x, final_y);
+cairo_rotate(cr, g.params.rotation + global_rotation);
+cairo_scale(cr, final_scale, final_scale);
+
+// pango draws from baseline — move back to baseline origin
+// baseline is at approximately 0.75 * height from top for most fonts
+cairo_move_to(cr, -g.width / 2.0,  g.baseline_offset - g.height / 2.0);
+
+cairo_set_source_rgba(cr, g.params.r, g.params.g, g.params.b, final_opacity);
+pango_cairo_show_glyph_string(cr, g.item->analysis.font, g.glyph_string);
+
+cairo_restore(cr);
 } 
     }
-}
+
