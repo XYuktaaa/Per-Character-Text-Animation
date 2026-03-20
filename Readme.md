@@ -22,20 +22,22 @@ controllable parameters: **position, rotation, scale, color, opacity**.
 
 ## Demo features
 
-| Feature | Details |
-|---|---|
-| Per-glyph decomposition | Each character extracted and rendered independently |
-| 5 animatable parameters | Position, rotation, scale, color, opacity — live sliders |
-| 4 animation modes | Wave/bounce, scale pop-in, color cycle, all combined |
-| Live text editing | Type to rebuild glyph list instantly |
-| Multi-line support | Correct per-line baseline alignment |
-| Drag to reposition | Click and drag text anywhere on canvas |
-| Stagger control | Per-character time offset slider |
-| Amplitude control | Wave height slider |
-| Character spacing | Independent letter spacing slider |
-| Font size | Live font size slider with instant rebuild |
-| Pause / Play | Freeze animation at any frame |
-| FPS counter | Live frame rate display |
+
+Per-character animation (glyph-level rendering)
+
+Multiple animation modes (wave, bounce, color, combined)
+
+Live text editing with instant rebuild
+
+Multi-line text support
+
+Staggered animation control
+
+Adjustable spacing, amplitude, and font size
+
+Drag-to-move interaction
+
+Pause/play and FPS display
 
 ---
 
@@ -94,21 +96,17 @@ correctly as single units.
 
 ## Relevance to Synfig
 
-This prototype is a standalone testbed using **Pango/Cairo** for convenience
-outside Synfig's build system. Pango internally wraps FreeType and HarfBuzz —
-the same libraries Synfig's `lyr_freetype.cpp` uses directly.
+This is a standalone prototype built using Pango/Cairo for simplicity.
 
-The production implementation will replace this prototype's approach with:
+In Synfig, the same idea would be implemented using:
 
-| Prototype (this repo) | Synfig production |
-|---|---|
-| `PangoLayoutIter` cluster iteration | HarfBuzz glyph cluster iteration |
-| `pango_cairo_show_glyph_string()` | `convert_outline_to_contours()` → `ChunkList` |
-| Cairo affine transforms | `build_composite_task_vfunc()` + `TaskTransformationAffine` |
-| Global render loop | `Layer_GlyphShape::sync_vfunc()` per child |
+FreeType (glyph outlines)
 
-The stagger engine demonstrated by `compute_stagger_phase()` in `renderer.cpp`
-maps directly to `Layer_StaggeredGroup::compute_phase()` in the final design.
+HarfBuzz (text shaping)
+
+FriBiDi (bidirectional text)
+
+The prototype mirrors this pipeline conceptually and serves as a testbed for a future TextGroupLayer implementation..
 
 ---
 
